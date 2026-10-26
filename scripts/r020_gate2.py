@@ -264,7 +264,7 @@ def score(out: Path) -> None:
             "median_s_per_generation": med, "envelope_s": env,
             "reduced_subset": None if med is None or env is None else bool(med > 2 * env),
             "peak_gpu_gb": max((r["peak_gpu_gb"] for r in rows if r["peak_gpu_gb"] is not None), default=None),
-            "load_seconds": max((r["load_seconds"] for r in rows), default=None)}
+            "load_seconds": max((r["load_seconds"] for r in rows if r["load_seconds"] is not None), default=None)}
     from spectra.config import load_yaml
 
     declared = {s: sorted(t) for s, t in load_yaml(ROOT / "src" / "spectra" / "resources" / "templates.yaml").items()
