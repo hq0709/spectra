@@ -1,0 +1,35 @@
+# ProgEmu (Emu3 code, transformers 4.45.2 as in its released config) and PRISM (SD v1.5 + LANCE editing
+# utilities; diffusers 0.24.0 as in its requirements.txt). huggingface_hub 0.25.2: diffusers 0.24 imports
+# cached_download, removed in 0.26 (PRISM's README names the same pin).
+torch==2.4.1
+torchvision==0.19.1
+transformers==4.45.2
+tokenizers==0.20.3
+diffusers==0.24.0
+huggingface_hub==0.25.2
+accelerate==0.34.2
+safetensors==0.4.5
+tiktoken==0.8.0
+sentencepiece==0.2.0
+pillow==10.4.0
+numpy==1.26.4
+scipy==1.13.1
+pandas==2.2.3
+ftfy==6.3.1
+regex
+tqdm
+opencv-python-headless==4.10.0.84
+pyarrow==18.1.0
+pyyaml
+jsonschema
+# imported at module level by LANCE's utils/misc_utils.py and ptp_utils.py
+loguru
+seaborn
+ipython
+nltk
+einops
+matplotlib
+# imported at module level by ProgEmu's register_chexpertplus.py (its extract_foreground prepares the prior)
+SimpleITK
+# ProgEmu's inference runs attn_implementation="flash_attention_2": the prebuilt wheel for torch 2.4 / CUDA 12 / cp311 / old C++ ABI
+flash-attn @ https://github.com/Dao-AILab/flash-attention/releases/download/v2.6.3/flash_attn-2.6.3+cu123torch2.4cxx11abiFALSE-cp311-cp311-linux_x86_64.whl

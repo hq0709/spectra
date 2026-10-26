@@ -1,0 +1,84 @@
+# SpecTra runtime image for Apptainer >= 1.2 (Docker/Podman equivalent:
+# Containerfile). Paths under %files are relative to the directory you build
+# from, which must be the spectra/ package root:
+#
+#   cd /path/to/spectra
+#   apptainer build spectra-core.sif container/spectra.def
+#   apptainer build --build-arg FLAVOR=gpu spectra-gpu.sif container/spectra.def
+#
+# Without root, add --fakeroot (needs an /etc/subuid range or the host
+# `fakeroot` command); or build with podman and convert, see README.md.
+#
+# The env comes from the lock files in this directory and is never re-solved.
+
+Bootstrap: docker
+# mambaorg/micromamba:2.9.0, pinned by its multi-arch index digest (2026-09-03).
+From: mambaorg/micromamba@sha256:e0a99b0f17a759e14c2f967dc0ca2d3a3c1ca3c62955f4d20bba770eaaf0184d
+
+%arguments
+    # core = Gate-0 CPU env; gpu = core + CUDA 12.9 torch/vLLM stack.
+    FLAVOR=core
+
+%files
+    container/conda-linux-64.lock /opt/spectra-lock/conda-linux-64.lock
+    container/conda-gpu-linux-64.lock /opt/spectra-lock/conda-gpu-linux-64.lock
+    container/requirements-gpu.lock.txt /opt/spectra-lock/requirements-gpu.lock.txt
+    container/spectra-libstdcxx.pth /opt/spectra-lock/spectra-libstdcxx.pth
+    pyproject.toml /opt/spectra/pyproject.toml
+    README.md /opt/spectra/README.md
+    src /opt/spectra/src
+    config /opt/spectra/config
+    tests /opt/spectra/tests
+
+%post
+    set -eu
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:${PATH}
+    export PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_ROOT_USER_ACTION=ignore
+    export PYTHONNOUSERSITE=1
+    case "{{ FLAVOR }}" in
+      core)
+        micromamba install -y -n base --file /opt/spectra-lock/conda-linux-64.lock ;;
+      gpu)
+        micromamba install -y -n base --file /opt/spectra-lock/conda-gpu-linux-64.lock
+        python -m pip install --no-deps --require-hashes \
+            -r /opt/spectra-lock/requirements-gpu.lock.txt
+        # preload the env's libstdc++ ahead of pip wheels (README "libstdc++ on EL8")
+        python -c 'import shutil, sysconfig; shutil.copy("/opt/spectra-lock/spectra-libstdcxx.pth", sysconfig.get_paths()["purelib"])' ;;
+      *)
+        echo "FLAVOR must be core or gpu, got '{{ FLAVOR }}'" >&2; exit 2 ;;
+    esac
+    micromamba clean --all --yes
+    python -m pip check
+    # Editable install: `--bind "$PWD":/opt/spectra` at run time runs a newer
+    # checkout with the locked env. --no-build-isolation keeps it offline.
+    python -m pip install --no-deps --no-build-isolation -e /opt/spectra
+    python -c "import spectra"
+    echo "{{ FLAVOR }}" > /opt/spectra-lock/FLAVOR
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:${PATH}
+    # Apptainer mounts the host $HOME; keep ~/.local site-packages out of sys.path.
+    export PYTHONNOUSERSITE=1
+    export PYTHONDONTWRITEBYTECODE=1
+
+%runscript
+    exec spectra "$@"
+
+%test
+    set -eu
+    python -c "import numpy, pandas, pyarrow, duckdb, scipy, yaml, spectra"
+    if [ "$(cat /opt/spectra-lock/FLAVOR)" = gpu ]; then
+        python -c "import torch, torchvision; print('torch', torch.__version__, 'cuda', torch.version.cuda)"
+    fi
+
+%labels
+    spectra.flavor {{ FLAVOR }}
+    spectra.description SpecTra benchmark constructor runtime (locked conda-forge env)
+
+%help
+    SpecTra runtime. `apptainer run spectra-core.sif <args>` runs `spectra <args>`.
+    Smoke test:  apptainer run spectra-core.sif selftest
+    Test suite:  apptainer exec spectra-core.sif python -m pytest -q /opt/spectra/tests
+    GPU image:   add --nv, e.g. apptainer exec --nv spectra-gpu.sif python -c "import torch; print(torch.cuda.is_available())"

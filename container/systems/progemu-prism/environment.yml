@@ -1,0 +1,4 @@
+# Conda layer of spectra-progemu-prism (ProgEmu, PRISM); the pip layer is requirements.lock.txt (hashed).
+name: spectra-progemu-prism
+channels: [conda-forge, nodefaults]
+dependencies: [python=3.11, pip, libstdcxx-ng, libgcc-ng]

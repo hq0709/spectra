@@ -1,0 +1,2 @@
+# Installed into the GPU env's site-packages. Loads the env's own libstdc++ at interpreter start so pip wheels with their own RUNPATH (torch) cannot pull in EL8's older /lib64/libstdc++.so.6 first, which breaks conda numpy with "GLIBCXX_3.4.29 not found". See container/README.md.
+import os, sys, ctypes; _p = os.path.join(sys.prefix, "lib", "libstdc++.so.6"); os.path.exists(_p) and ctypes.CDLL(_p, mode=ctypes.RTLD_GLOBAL)

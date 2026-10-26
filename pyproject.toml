@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spectra"
+version = "0.1.0"
+description = "SpecTra: trajectory and specification tests for chest radiograph world models (benchmark constructor and scorer)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "pyarrow>=14",
+    "scipy>=1.11",
+    "pyyaml>=6",
+    "jsonschema>=4",
+]
+
+[project.optional-dependencies]
+db = ["duckdb>=1.0"]
+test = ["pytest>=8"]
+tokenizers = ["transformers>=4.45"]
+
+[project.scripts]
+spectra = "spectra.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+spectra = ["py.typed", "resources/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

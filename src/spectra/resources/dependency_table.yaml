@@ -1,0 +1,51 @@
+# Dependency table (FINAL_PROPOSAL.md, Core Mechanism section 4). Frozen before construction;
+# hand-classed by the project clinician. Status: DRAFT until the clinician signs off (Gate 1).
+#
+# The mutable bundle M of a scored device holds its transitions, the interval endpoints of the device
+# and of its dependents, and the dependency changes listed here; everything else is background B.
+
+ETT:
+  placement_bundle:
+    transitions: [intubation]
+    dependent_actions: [invasive_ventilation]              # start at or after intubation
+    dependent_after_placement: [ventilator_setting, neuromuscular_blocker]   # charted while ventilated
+  removal_bundle:
+    transitions: [extubation]
+    dependent_actions: [invasive_ventilation_stop]
+    dependent_after_removal: [noninvasive_ventilation]     # NIV starting after extubation
+    carry_forward_on_deletion: [ventilator_setting]        # when a removal is deleted, settings persist as state
+  insertion_bundle: [intubation, invasive_ventilation]     # minimal coherent bundle at t0 + 1 h
+  exclusion_actions: [tracheostomy]
+  visibility: {exclude_sites: []}
+
+CVC:
+  placement_bundle: {transitions: [line_placement]}
+  removal_bundle: {transitions: [line_removal]}
+  insertion_bundle: [line_placement]
+  scored_sites: [IJ, subclavian]                           # femoral lines excluded from E2
+  exclude_subtypes: ["Indwelling Port (PortaCath)"]
+
+PICC:
+  placement_bundle: {transitions: [line_placement]}
+  removal_bundle: {transitions: [line_removal]}
+  insertion_bundle: [line_placement]
+
+enteric:
+  placement_bundle:
+    transitions: [enteric_tube_placement]
+    dependent_after_placement: [enteral_feed]
+  removal_bundle: {transitions: []}
+  insertion_bundle: [enteric_tube_placement]
+
+chest_tube:
+  placement_bundle: {transitions: [chest_tube_placement]}
+  removal_bundle: {transitions: [chest_tube_removal]}
+  insertion_bundle: [chest_tube_placement]
+
+# interval actions and their stop events move together (a deleted start never leaves its stop behind)
+interval_pairs:
+  invasive_ventilation: invasive_ventilation_stop
+  noninvasive_ventilation: noninvasive_ventilation_stop
+
+# Track B dependents withheld from both arms of every test (see mimic_itemids.yaml track_b.device_dependents)
+one_row_types: [CVC, PICC, enteric, chest_tube]           # eligible for the fixed-length device-type control

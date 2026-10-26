@@ -1,0 +1,172 @@
+# MIMIC-IV 3.1 ontology for the CER compiler (FINAL_PROPOSAL.md, Core Mechanism section 9).
+# Every itemid below was checked against the open MIMIC-IV demo 2.2 icu/d_items (labels match).
+# Track A = typed actions; Track B = Track A + intervening observations. The denylist applies to both.
+
+priority_order: [device_procedure, ventilator_setting, diuretic_vasoactive, transfusion, fluid, antibiotic, other_medication]
+
+procedureevents:
+  # point events that are device transitions
+  device_point:
+    224385: {action_type: intubation, device: ETT, transition: place, site: nasal/oral}
+    227194: {action_type: extubation, device: ETT, transition: remove, site: nasal/oral}
+    225468: {action_type: extubation, device: ETT, transition: remove, site: nasal/oral}   # unplanned, patient-initiated
+    225477: {action_type: extubation, device: ETT, transition: remove, site: nasal/oral}   # unplanned, non-patient initiated
+    225433: {action_type: chest_tube_placement, device: chest_tube, transition: place, site: pleural}
+    227712: {action_type: chest_tube_removal, device: chest_tube, transition: remove, site: pleural}
+    229501: {action_type: enteric_tube_placement, device: enteric, transition: place, site: nasal/oral}
+  # line in from starttime to endtime (Access Lines - Invasive); site/side from `location`
+  device_interval:
+    224263: {device: CVC, subtype: Multi Lumen}
+    229516: {device: CVC, subtype: Single Lumen}
+    224267: {device: CVC, subtype: Cordis/Introducer}
+    225199: {device: CVC, subtype: Triple Introducer}
+    224270: {device: CVC, subtype: Dialysis Catheter}
+    224560: {device: CVC, subtype: PA Catheter}
+    225315: {device: CVC, subtype: Tunneled (Hickman) Line}
+    225202: {device: CVC, subtype: Indwelling Port (PortaCath), exclude_from_scoring: true}
+    224264: {device: PICC, subtype: PICC Line}
+  # interval processes that are not devices
+  interval_action:
+    225792: {action_type: invasive_ventilation}
+    225794: {action_type: noninvasive_ventilation}
+  # events that make a device type ineligible (tracheostomy for ETT)
+  exclusion:
+    225448: {action_type: tracheostomy, excludes: ETT}
+    226237: {action_type: tracheostomy, excludes: ETT}
+  # remaining procedureevents enter Track A by category (point or interval actions)
+  allow_categories: ["1-Intubation/Extubation", "2-Ventilation", "Access Lines - Invasive", "4-Procedures", "Dialysis"]
+
+inputevents:
+  allow_categories: [Medications, Antibiotics, "Blood Products/Colloids", "Fluids/Intake", "Nutrition - Enteral", "Nutrition - Parenteral"]
+  action_type_by_category:
+    Medications: other_medication
+    Antibiotics: antibiotic
+    "Blood Products/Colloids": transfusion
+    "Fluids/Intake": fluid
+    "Nutrition - Enteral": enteral_feed
+    "Nutrition - Parenteral": parenteral_nutrition
+  priority_by_action_type:
+    diuretic: diuretic_vasoactive
+    vasoactive: diuretic_vasoactive
+    neuromuscular_blocker: other_medication
+    other_medication: other_medication
+    antibiotic: antibiotic
+    transfusion: transfusion
+    fluid: fluid
+    enteral_feed: fluid
+    parenteral_nutrition: fluid
+  medication_classes:
+    diuretic: [221794, 228340, 229639]
+    vasoactive: [221906, 221289, 222315, 221749, 221662, 221653, 221986]
+    neuromuscular_blocker: [221555, 222062, 229233]
+
+chartevents:
+  ventilator_settings:
+    223849: Ventilator Mode
+    229314: Ventilator Mode (Hamilton)
+    223848: Ventilator Type
+    224688: Respiratory Rate (Set)
+    224684: Tidal Volume (set)
+    220339: PEEP set
+    223835: Inspired O2 Fraction
+
+# never a model input (Track A or Track B)
+deny:
+  procedureevents_categories: ["5-Imaging"]
+  itemids:
+    - 225459   # Chest X-Ray
+    - 229581   # Portable Chest X-Ray
+    - 221216   # X-ray
+    - 227751   # CCO PAC Placement Confirmed by X-ray
+    - 227752
+    - 227753
+    - 227754
+    - 227755
+    - 227756   # Multi Lumen Placement Confirmed by X-ray
+    - 227757
+    - 227758
+    - 227759   # PICC Line Placement Confirmed by X-ray
+    - 227760
+    - 227761
+    - 227762
+    - 227763
+    - 227764
+    - 227732   # AVA Line Placement Confirmed by X-ray
+    - 229497   # Final Position confirmed (SBNET)
+    - 229487   # 2 Stage CXR Insertion Technique (SBNET)
+    - 228037   # Follow-up chest X-RAY ordered (CVL)
+    - 225702
+    - 228047   # Follow-up X-RAY Ordered (PICC)
+    - 225288
+    - 228122   # Follow-up X-RAYordered (PA Line)
+    - 225648
+    - 228093   # Follow-up X-RAY Ordered (THCEN)
+    - 225488
+    - 228483   # Follow Up Xray (Gen Proc)
+    - 226732   # O2 Delivery Device(s)
+    - 223836   # Airway Type
+    - 225277   # ETT Position (cm at teeth)
+    - 225585   # ETT Depth (Intubation)
+    - 224392   # ETT Position Change
+    - 227809   # ETT Position Change (checkbox)
+    - 223993   # Chest Tube Site # 1
+    - 224438
+    - 224439
+    - 224440
+    # airway and line documentation that states the device itself (checked in the demo d_items)
+    - 223838   # ETT Location
+    - 224415   # ETT Mark (cm)
+    - 224391   # ETT Mark (location)
+    - 223837   # ETT Size (ID)
+    - 224832   # ETT Type
+    - 227810   # ETT Re-taped
+    - 224417   # Cuff Pressure
+    - 224418   # Cuff Volume (mL)
+    - 226814   # Known difficult intubation
+    - 226815   # Airway problems
+    - 227130   # Trach Care
+    - 224829   # Trach Tube Type
+    - 224830   # Trach Tube Manufacturer
+    - 224831   # Trach Tube Size (I.D.)
+    - 223847   # Passey Muir Valve in use
+    - 225949   # NIV Mask
+    - 227578   # BiPap Mask
+    - 223773   # PA Line cm Mark
+  chartevents_label_patterns:
+    - '^GI #\d (Tube|Intub)'   # GI-tube type / status / place-check / place-method / mark / drainage / site
+
+# Track B observations and the device dependents withheld from both arms of every E2 test of that device.
+# Respiratory chartevents presuppose an airway/ventilator except the listed general items.
+track_b:
+  chartevents_categories: ["Routine Vital Signs", Respiratory, Hemodynamics]
+  outputevents: true
+  labevents: true
+  microbiology: true
+  device_dependents:
+    ETT:
+      chartevents_categories: [Respiratory]
+      chartevents_general: [220277, 220210, 223834, 227287, 224170, 224169, 224173, 224172, 224375, 227131, 227133, 227570,
+                            224373, 224370, 224369, 224372]   # SpO2, RR, O2 flow, inhaled drugs, sputum
+    CVC:
+      chartevents: [220074, 220059, 220060, 220061, 223771, 224842, 220088, 223772, 227805, 227549, 227806, 226272]  # CVP, PA, PCWP, CO, SvO2, ScvO2
+    chest_tube:
+      outputevents: [226588, 226589, 229413, 229414, 226593, 226595, 226590, 226591]   # Chest Tube #1-4, R/L Pleural
+    enteric:
+      outputevents: [226575, 226576, 226573, 226569]   # Nasogastric, Oral Gastric, Gastric Tube, Anderson (gastric)
+
+# insertion-access side and site from procedureevents.location
+location_map:
+  "Right IJ": {site: IJ, side: R}
+  "Left IJ": {site: IJ, side: L}
+  "Right Subclavian": {site: subclavian, side: R}
+  "Left Subclavian": {site: subclavian, side: L}
+  "Right Femoral.": {site: femoral, side: R}
+  "Left Femoral.": {site: femoral, side: L}
+  "Right Brachial.": {site: brachial/basilic/cephalic, side: R}
+  "Left Brachial.": {site: brachial/basilic/cephalic, side: L}
+  "Right Basilic.": {site: brachial/basilic/cephalic, side: R}
+  "Left Basilic.": {site: brachial/basilic/cephalic, side: L}
+  "Right Cephalic.": {site: brachial/basilic/cephalic, side: R}
+  "Left Cephalic.": {site: brachial/basilic/cephalic, side: L}
+  "Right Antecube": {site: brachial/basilic/cephalic, side: R}
+  "Left Antecube": {site: brachial/basilic/cephalic, side: L}

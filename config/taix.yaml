@@ -1,0 +1,5 @@
+# TAIX-Ray (this cluster). Open, CC BY 4.0. Authoritative E1 adapter: spectra.adapters.taix.
+source: taix
+metadata: /path/to/workspace/data/taix-ray-metadata/taix_metadata.parquet
+images: /path/to/home/cache/hub/datasets--TLAIM--TAIX-Ray/snapshots/7f43720e2c7ab6400608880c0cb8b950ac0e5afb/data   # 512 px parquet shards (default config, 59 shards), downloaded 2026-10-21
+splits: [test]

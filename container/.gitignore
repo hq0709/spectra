@@ -1,0 +1,3 @@
+# build outputs (tarballs, SIF images) and resolver/build caches
+dist/
+.build/

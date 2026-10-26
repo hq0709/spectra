@@ -1,0 +1,25 @@
+# UniMedVL (Bagel-based; codes/environment.yaml at commit f51aa0a): torch 2.5.1, transformers 4.49.0,
+# flash-attn (imported unconditionally): the prebuilt wheel for torch 2.5 / CUDA 12 / cp310 / old C++ ABI.
+torch==2.5.1
+torchvision==0.20.1
+triton==3.1.0
+transformers==4.49.0
+accelerate==1.7.0
+safetensors==0.4.5
+tokenizers==0.21.1
+sentencepiece==0.1.99
+pillow==11.2.1
+numpy==1.24.4
+opencv-python-headless==4.7.0.72
+einops==0.8.1
+matplotlib==3.7.0
+huggingface_hub==0.30.2
+regex
+pyyaml
+requests
+tqdm
+pandas==2.2.3
+pyarrow==18.1.0
+jsonschema
+scipy
+flash-attn @ https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch2.5cxx11abiFALSE-cp310-cp310-linux_x86_64.whl

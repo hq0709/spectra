@@ -1,0 +1,74 @@
+# SpecTra GPU runtime (later gates) = the core env + a CUDA 12.9 PyTorch/vLLM
+# stack. linux-64 only.
+#
+# Layers
+#   conda (conda-forge only, strict): exactly the environment-core.yml pins,
+#     plus llguidance (see below).
+#   pip: the GPU stack, every top-level package pinned exactly. torch,
+#     torchvision and torchaudio are the +cu129 builds from
+#     download.pytorch.org; vllm is the +cu129 wheel attached to vLLM's GitHub
+#     release, because the PyPI vllm 0.32.0 wheel is built for CUDA 13.0.
+#
+# Where the torch/vLLM pairing comes from (checked 2026-10-20):
+#   - vLLM v0.20.0 release notes: "Default CUDA wheel on PyPI ... switched to
+#     CUDA 13.0"; v0.32.0 release notes list "CUDA 12.9 Python wheels for
+#     x86_64 and arm64" as release assets (GitHub API digest of the x86_64
+#     wheel is the sha256 below).
+#   - vLLM v0.32.0 requirements/cuda.txt and the wheel's own METADATA:
+#     torch==2.13.0, torchvision==0.28.0, torchaudio==2.11.0,
+#     transformers>=5.16.1,<5.20.0, flashinfer-python==0.7.0.post1.
+#   - download.pytorch.org/whl/cu129 serves torch-2.13.0+cu129,
+#     torchvision-0.28.0+cu129 and torchaudio-2.11.0+cu129 for cp311.
+#
+# Two conda-side pins exist only because of the vLLM dependency tree:
+#   - llguidance: vllm needs llguidance>=1.7,<1.8 on x86_64. PyPI's CPython
+#     wheels for 1.7.x are manylinux_2_31, and EL8 (the development cluster) has glibc 2.28.
+#     conda-forge's llguidance 1.7.6 is abi3 and needs only glibc>=2.17.
+#   - numpy 2.3.5 (in both envs): mistral-common, a vllm dependency, needs
+#     numpy<2.4 on Python < 3.13.
+#
+# Install from the locks (README.md): conda-gpu-linux-64.lock for the conda
+# layer, then requirements-gpu.lock.txt (hashed, --no-deps) for pip, then copy
+# spectra-libstdcxx.pth into site-packages. Without that file, `import torch`
+# before numpy fails on EL8 ("GLIBCXX_3.4.29 not found").
+# `conda env create -f environment-gpu.yml` also works if you first export
+#   PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu129
+# because pip needs that index to find the +cu129 builds.
+name: spectra-gpu
+channels:
+  - conda-forge
+  - nodefaults
+# Read by conda-lock only. conda/micromamba ignore this key.
+pip-repositories:
+  - https://download.pytorch.org/whl/cu129
+dependencies:
+  # core layer: keep identical to environment-core.yml
+  - python=3.11.17
+  - numpy=2.3.5
+  - pandas=3.0.6
+  - pyarrow=25.0.0
+  - duckdb=1.5.6
+  - scipy=1.17.1
+  - pyyaml=6.0.3
+  - pytest=9.1.1
+  - scikit-learn=1.9.1
+  - statsmodels=0.15.0
+  - tqdm=4.70.1
+  - jsonschema=4.26.0
+  - pip=26.2.1
+  - setuptools=84.2.0
+  - wheel=0.48.0
+  # GPU-only conda package
+  - llguidance=1.7.6
+  - pip:
+      - torch==2.13.0+cu129
+      - torchvision==0.28.0+cu129
+      - torchaudio==2.11.0+cu129   # hard requirement of vllm 0.32.0
+      - vllm @ https://github.com/vllm-project/vllm/releases/download/v0.32.0/vllm-0.32.0%2Bcu129-cp38-abi3-manylinux_2_28_x86_64.whl#sha256=9918be806fb2808c406547ff4f9f43870ac6ff28dc4b179291fcf532145bb50b
+      - transformers==5.19.0       # vllm 0.32.0: >=5.16.1,<5.20.0
+      - diffusers==0.41.0
+      - accelerate==1.15.0
+      - safetensors==0.8.0
+      - pillow==12.3.0             # 13.0.0 was 4 days old at lock time
+      - huggingface_hub==1.33.0    # diffusers 0.41.0: <2.0
+      - sentencepiece==0.2.2

@@ -1,0 +1,5 @@
+# Conda layer of spectra-unimedvl (UniMedVL; python 3.10 as in its codes/environment.yaml); the pip layer is
+# requirements.lock.txt (hashed, flash-attn prebuilt wheel included).
+name: spectra-unimedvl
+channels: [conda-forge, nodefaults]
+dependencies: [python=3.10, pip, libstdcxx-ng, libgcc-ng]

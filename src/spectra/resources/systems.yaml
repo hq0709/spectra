@@ -1,0 +1,35 @@
+# Evaluated configurations (EXPERIMENT_PLAN.md "(b) Model Panel with Input-Access Tracks").
+# style: interface compiled from the CER stream (serialize.py); tokenizer: what the round-trip check runs
+# (ProgEmu's inference code loads the Emu3-Stage1 tokenizer; its own repository ships none).
+# code: official repository @ commit (checked out under cxr-wm-bench/third_party/); env: the conda env the
+# system runs in (container/environment-gpu.yml, container/systems/<env>/); PRISM's released repository lacks
+# the LANCE editing utilities its script imports, so editing_code names the LANCE commit used.
+# Weights ids are the ones verified in notes/model_evaluator_inventory.md. runs_on: mimic | cluster | both.
+# GPU memory figures are inventory estimates [est.] until Gate 2 measures them.
+
+reference_prior_only:     {group: reference, track: none, style: typed, runs_on: mimic, init: stanfordmimi/RoentGen-v2, e1: full, e2: control}
+reference_prior_delta:    {group: reference, track: delta, style: typed, runs_on: mimic, init: stanfordmimi/RoentGen-v2, replicates: 3, e1: full, e2: control}
+reference_prior_delta_actions: {group: reference_native_actions, track: A, style: typed, runs_on: mimic, init: stanfordmimi/RoentGen-v2, replicates: 3, e1: full, e2: full, audit_name: S1}
+matched_permuted_stream:  {group: reference_perturbation, track: A, style: typed, runs_on: mimic, e1: full}
+ehrxdiff_local:           {group: native_track_b, track: B, style: event_text, runs_on: mimic, code: dek924/ehrxdiff, tokenizer: Qwen/Qwen3-Embedding-8B, embedder: Qwen/Qwen3-Embedding-8B, e1: full, e2: full}
+ddl_cxr:                  {group: native_track_b_physiology, track: B, style: native_series, runs_on: mimic, weights: jasmineChen/ddl-cxr, e1: ddl_eligible_subset, e2: none}
+progemu:                  {group: cxr_generator_prompted, track: A, style: verbal, runs_on: both, weights: massaki75/progemu, tokenizer: BAAI/Emu3-Stage1, tokenizer_remote_code: true, code: Masaaki-75/progemu@28cc43a885fe7a4d835bf735d5ea85f29ad3d9b2, env: spectra-progemu-prism, gpu_gb_est: 24, e1: reduced_1600, e2: reduced_200, external_e2: 200}
+unimedvl:                 {group: unified_prompted, track: A, style: verbal, runs_on: both, weights: General-Medical-AI/UniMedVL, tokenizer: General-Medical-AI/UniMedVL, code: uni-medical/UniMedVL@f51aa0accbd02e846e5ea20b595fb39b516dbe1f, env: spectra-unimedvl, gpu_gb_est: 32, e1: reduced_2000, e2: reduced_300, external_e2: 200}
+prism:                    {group: cxr_editor_prompted, track: A_compact, style: compact, runs_on: both, weights: amar-kr/PRISM, tokenizer: openai/clip-vit-large-patch14, max_tokens: 77, code: Amarkr1/PRISM@8c6c6426480e64c495f5a7353ab4dfd4e02fe3d7, editing_code: virajprabhu/LANCE@28c39b8fc970b556729c38cd9f573432a3a5b115, base: stable-diffusion-v1-5/stable-diffusion-v1-5, source_caption: chest xray of a patient, env: spectra-progemu-prism, gpu_gb_est: 8, e1: full, e2: full, external_e2: full}
+qwen_image_edit_2511:     {group: general_editor_prompted, track: A, style: verbal, runs_on: both, weights: Qwen/Qwen-Image-Edit-2511, tokenizer: Qwen/Qwen2.5-VL-7B-Instruct, env: spectra-gpu, gpu_gb_est: 58, e1: reduced_2000, e2: reduced_300, external_e2: 200}
+flux2_klein_4b:           {group: general_editor_prompted, track: A, style: verbal, runs_on: both, weights: black-forest-labs/FLUX.2-klein-4B, tokenizer: black-forest-labs/FLUX.2-klein-4B, tokenizer_subfolder: tokenizer, env: spectra-gpu, gpu_gb_est: 13, e1: full, e2: full, external_e2: full}
+radedit:                  {group: positive_control, track: target_state, style: target_prompt, runs_on: both, weights: microsoft/radedit, gpu_gb_est: 8, e2: positive_control_300, external_e2: 100}
+medgemma_1_5_4b:          {group: state_predictor, track: A, style: verbal, runs_on: both, weights: google/medgemma-1.5-4b-it, tokenizer: google/medgemma-1.5-4b-it, gated: true, env: spectra-gpu, gpu_gb_est: 9, e1: full, e2: full_state_level, external_e2: full}
+lingshu_32b:              {group: state_predictor, track: A, style: verbal, runs_on: both, weights: lingshu-medical-mllm/Lingshu-32B, tokenizer: lingshu-medical-mllm/Lingshu-32B, env: spectra-gpu, gpu_gb_est: 67, e1: full, e2: full_state_level, external_e2: full}
+external_reference_pair:  {group: external_controls, track: delta, style: typed, runs_on: cluster, init: stanfordmimi/RoentGen-v2, train: taix_train}
+
+controls: [copy_prior, population_rate, expected_device_state_oracle, record_volume]
+ranked_set_R: [prism, flux2_klein_4b, qwen_image_edit_2511, unimedvl, progemu]   # ordered by MIMIC dev AUROC at Gate 2
+
+extractor:                 # report labeler of the references (M5 / X4 / D3); not an evaluated system
+  model: Qwen/Qwen3-32B
+  runs_on: both
+
+evaluator:
+  encoder: microsoft/rad-dino
+  secondary: [torchxrayvision, ianpan/cxr-lines-and-tubes]

@@ -1,0 +1,37 @@
+# SpecTra core runtime (Gate-0 tests): CPU-only, conda-forge only.
+#
+# Channel policy: conda-forge with strict priority. `nodefaults` keeps
+# Anaconda's `defaults` channel out of every solve (its ToS needs a paid
+# licence for organisations over 200 people). Do not add it.
+#
+# Top-level pins are exact, solved 2026-10-20 for linux-64. The full
+# transitive closure, with hashes, is in conda-lock.yml (unified) and
+# conda-linux-64.lock (explicit); install from those, not from this file,
+# when you need a bit-identical env. Regenerate both with
+# container/relock.sh after editing this file.
+name: spectra
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11.17
+  # numpy stays on 2.3.x so this env is an exact subset of environment-gpu.yml:
+  # vllm 0.32.0 needs mistral-common>=1.11.6, which requires numpy<2.4 on
+  # Python < 3.13. Gate-0 and the GPU gates then share one numpy build.
+  - numpy=2.3.5
+  - pandas=3.0.6
+  - pyarrow=25.0.0
+  - duckdb=1.5.6          # metapackage -> python-duckdb 1.5.6
+  - scipy=1.17.1
+  - pyyaml=6.0.3
+  - pytest=9.1.1
+  - scikit-learn=1.9.1
+  - statsmodels=0.15.0
+  - tqdm=4.70.1
+  - jsonschema=4.26.0
+  # Build backend for `pip install --no-build-isolation -e .` so installing
+  # the spectra package itself never needs network (pyproject requires
+  # setuptools>=68 and wheel).
+  - pip=26.2.1
+  - setuptools=84.2.0
+  - wheel=0.48.0

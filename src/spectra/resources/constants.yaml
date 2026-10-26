@@ -1,0 +1,144 @@
+# Fixed constants and confirmatory family (FINAL_PROPOSAL.md, Core Mechanism section 12).
+# Prespecified before any test generation; changing a value here after Gate 4 starts is a protocol deviation.
+
+e1:
+  horizon:
+    mimic: {min_h: 1.0, max_h: 168.0, same_stay: true}          # 1 h <= Delta <= 7 d, same ICU stay
+    taix: {min_days: 1, max_days: 30, timing: age_days}           # Age-based timing, one film per patient-day
+    rexgradient: {min_days: 1, max_days: 180, exclude_same_day: true}
+  max_later_films: 3          # next <=3 consecutive frontal films per prior
+  max_priors_per_stay: 3      # per patient for external sources
+  prior_sampling_seed: 20261020
+  primary_channels: [edema, effusion_L, effusion_R]
+  pooled_channels: {effusion: [effusion_L, effusion_R]}
+  margin: 0.02
+
+e2:
+  primary_devices: [ETT, CVC]
+  secondary_devices: [enteric, chest_tube]
+  secondary_priority: [mirror, type_control, insertion]
+  secondary_class_cap_fraction: 0.40
+  insertion_offset_h: 1.0
+  cross_source_protocol: {delta_h: 24.0, event_offset_h: 1.0, actions: unknown}
+  substantial_failure_threshold: 0.90
+  between_model_margin: 0.05
+  positive_control_min_jda: 0.80
+  device_weights: {ETT: 0.5, CVC: 0.5}
+
+delta_bins_h: [1, 12, 48, 168, 720, 4320]   # [1 h,12 h) [12 h,48 h) [2 d,7 d) [7 d,30 d) [30 d,180 d]
+
+generation:
+  seeds_per_query: 4
+  seed_base: 1009
+  evaluation_resolution: 512
+  resolution_matched_controls: [256, 224]
+
+# Gate 2 on this cluster (R020 throughput, template choice; R021 copy-prior control), fixed 2026-10-21 before any Gate-2
+# generation. Dev queries: TAIX-Ray val E1 sets (effusion channels; edema is unscored on TAIX-Ray), priors taken in
+# sha256(query_seed|prior) order until their later films reach dev_queries; every later film is one mode-R query
+# (Track Delta, actions unknown); seeds = seed_base + 0..seeds-1. Readouts: frozen finding heads
+# (runs/R019/frozen/taix_findings_v1) for image outputs, the parsed grades for state predictors; an output that cannot
+# be read (no image, unparseable state) makes each contrast it enters incorrect (kappa = 0). Template choice: per
+# system, the template with the highest pooled-effusion C on these queries, ties to the lower index; it holds for the
+# external sources (TAIX-Ray, PadChest), MIMIC dev decides MIMIC's. Budget: the median s / generation (first one
+# excluded) is compared with the plan's envelope; above 2x its upper end the configuration moves to the reduced subset.
+gate2:
+  dev_queries: 100
+  seeds: 2
+  query_seed: spectra-gate2-v1
+  source_split: val
+
+# Reference family (MIMIC server) and external reference pair (this cluster): one architecture and one recipe, fixed
+# 2026-10-25 before any reference training (FINAL_PROPOSAL.md Training Plan; no grid). RoentGen-v2 (SD-2.1-base class,
+# epsilon prediction, 64 x 64 latents of the 512^2 evaluation-rule film). The prior's latent is concatenated to the noisy
+# latent (conv_in 4 -> 8 channels, the new input weights zero); no text encoder: the cross-attention context is a learned
+# null token (prior-only) or a Delta token, an MLP of the sinusoidal embedding of log(1 + hours) (prior+Delta); action
+# tokens are appended on the MIMIC server (prior+Delta+actions). Steps: one common N for all configurations of a family,
+# N = 1000 * floor(gpu_hours / max_c h_c) with h_c the pilot's GPU-hours per 1,000 steps of configuration c (cost only,
+# never a validation score); the last step is kept. Initialization is seeded (init_seed); pair draws, diffusion noise and
+# timesteps (train_seed, per global step) are reproducible across restarts and GPU counts. Bitwise-identical model
+# updates across GPU counts or backends are not guaranteed.
+reference:
+  init: stanfordmimi/RoentGen-v2
+  context_dim: 1024
+  delta_embedding_dim: 256
+  lr: 5.0e-5
+  weight_decay: 0.01
+  warmup_steps: 500
+  grad_clip: 1.0
+  batch: 64
+  augmentation: none
+  prior_lr_mult: 1    # learning-rate multiplier of the zero-initialized prior input conv
+  gradient_checkpointing: true   # batch 64 needs it on one 80 GB GPU (pilot OOM without); same computation
+  pair_seed: spectra-reference-pairs-v1
+  init_seed: 20261025
+  train_seed: 20261026
+  max_pairs_per_patient: 20
+  taix_pairs_days: [1, 30]
+  pilot_steps: 1000
+  gpu_hours: 100
+  sampler: {name: ddim, steps: 50, eta: 0.0, guidance: none, noise_seed: per_prior_and_seed, start: prior}
+
+capacity:
+  events_llm: 64
+  clip_tokens: 77
+
+evaluator:
+  encoder: microsoft/rad-dino      # frozen; read through spectra.images.to_eval at the evaluation resolution
+  token_grid: 8                    # CLS + the 37 x 37 patch grid average-pooled to 8 x 8
+  finding_grades: {edema: 5, effusion_L: 5, effusion_R: 5}   # TAIX-Ray grades 0-4; readout = expected grade
+  holdout_fraction: 0.10           # train-split patients held out for epoch selection (salted hash)
+  holdout_salt: spectra-evaluator-v1
+  # RANZCR CLiP device tasks (two-class presence; readout psi_d = P(present)); fixed 2026-10-21 before any RANZCR
+  # label was read. Presence = any grade of the device's label columns (ETT: airway tube, its "ETT" includes
+  # tracheostomy; CVC: any central venous catheter; NGT: enteric tube, including "Incompletely Imaged"); absent = none.
+  # Its public test labels are hidden, so held-out real films (E-b) are a salted-hash patient split of its train set.
+  device_tasks_ranzcr: {airway_tube: 2, cvc_any: 2, enteric: 2}
+  ranzcr_val_fraction: 0.20
+  ranzcr_split_salt: spectra-ranzcr-v1
+  # E-c, the one prespecified adaptation of a head that misses its section-12 criterion on a source. Fixed
+  # 2026-10-21 after E-b on TAIX-Ray (edema QWK 0.448) and before any adaptation ran: the last 4 of RAD-DINO's
+  # 12 blocks and its final layer norm are fine-tuned together with the failing head (initialised from its E-a
+  # weights) on the source's dev-train real films, same tokens, loss and evaluation image rule, no augmentation;
+  # the epoch is chosen by holdout cross-entropy; the adapted head is re-validated once on the same held-out films
+  # and, if it passes, scores that source only; if it misses again, the endpoint is unscored on that source.
+  adaptation:
+    trainable_blocks: 4
+    epochs: 4
+    batch: 64
+    lr_encoder: 1.0e-5
+    lr_head: 1.0e-4
+    weight_decay: 0.05
+    warmup_fraction: 0.05
+
+evaluator_acceptance:
+  presence_auroc: {ETT: 0.95, CVC: 0.95, enteric: 0.90, chest_tube: 0.90}
+  mimic_side_accuracy: 0.90
+  ordinal_weighted_kappa_vs_taix: 0.60
+  # fixed 2026-10-21 before any head was trained: quadratic weights; the film's grade is its expected grade
+  # phi_c rounded half up (clipped to the grade range); the point estimate decides, reported with its SD over patients
+  kappa_weights: quadratic
+  ordinal_discretization: round_half_up_expected_grade
+  mimic_report_state_auroc: 0.85
+
+reference_acceptance:   # point estimates decide (reported with binomial SD; no intervals)
+  precision: 0.90
+  link_validity: 0.90
+  initial_state_error: 0.05
+  tier2_precision: 0.95
+
+inference:
+  bootstrap_replicates: 2000
+  alpha: 0.05
+  holm_families:
+    0: [H1, H2, H5]
+    1: [H1, H2, H3, H4, H5, H6, H7]
+    2: [H1, H2, H3, H4, H5, H6, H7, H8, H9]
+    3: [H1, H2, H3, H4, H5, H6, H7, H8, H9]
+    4: [H1, H2, H3, H4, H5, H6, H7, H8, H9]
+    5: [H1, H2, H3, H4, H5, H6, H7, H8, H9]
+
+extractor:
+  model: Qwen3-32B
+  temperature: 0.0
+  evidence_span_check: true

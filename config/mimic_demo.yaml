@@ -1,0 +1,3 @@
+# Open MIMIC-IV demo 2.2 (no CXR images): Gate-0 CER checks on this cluster.
+source: mimic_demo
+mimiciv_dir: /path/to/workspace/data/mimic-iv-demo/2.2

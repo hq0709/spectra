@@ -1,0 +1,5 @@
+# RANZCR CLiP (this cluster). Kaggle competition data (rules accepted by the account of fake_home/.kaggle/access_token);
+# research, non-commercial. Used only to train and validate evaluator device heads (R019), never as an E1/E2 source.
+source: ranzcr
+labels: /path/to/workspace/data/ranzcr-clip/train.csv
+images: /path/to/workspace/data/ranzcr-clip/train      # <StudyInstanceUID>.jpg

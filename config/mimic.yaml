@@ -1,0 +1,8 @@
+# MIMIC (MIMIC server only). Fill the paths on that machine; nothing patient-level leaves it.
+source: mimic
+cxr_jpg_dir: /path/on/mimic/server/mimic-cxr-jpg/2.1.0
+cxr_reports_dir: /path/on/mimic/server/mimic-cxr/2.1.0
+mimiciv_dir: /path/on/mimic/server/mimiciv/3.1
+loader: duckdb            # bounded reads by cohort stays (pandas chunked reads for small cohorts)
+split_salt: spectra-mimic-v1
+split_fractions: {dev_train: 0.6, dev_val: 0.1, test: 0.3}

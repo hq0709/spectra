@@ -1,0 +1,36 @@
+# Prompt templates of the prompted systems (FINAL_PROPOSAL.md, model panel): at most three per system, chosen on
+# development data only at Gate 2. `{input}` is the serialized input (mode R or mode S) that the round-trip check
+# certifies; the check runs on the templated text. Text a model's own pipeline adds around it (chat template,
+# image tokens) is fixed and identical in both arms. Until Gate 2 fixes the choice every system uses t1.
+# t2/t3 of the general editors were added after R004 on a TAIX-Ray val film (development data): with t1,
+# Qwen-Image-Edit-2511 rendered the input as captions in a two-panel figure instead of editing the film.
+
+progemu:              # infer_progemu.py default (use_template off): prior image tokens + condition text
+  t1: "{input}"
+unimedvl:
+  t1: "Edit this chest radiograph into the follow-up chest radiograph of the same patient. {input}"
+prism:                # CLIP text encoder: the 77-token compact form is the whole prompt
+  t1: "{input}"
+  t2: "chest xray of a patient. {input}"           # its training captions' prefix (t1 edits came out blurred)
+  t3: "chest xray of a patient with {input}"
+qwen_image_edit_2511:
+  t1: "Edit this chest radiograph into the follow-up chest radiograph of the same patient, taken after the interval below. Keep the projection, positioning and anatomy; change only what the interval and the treatments imply. {input}"
+  t2: "Edit this chest radiograph into the follow-up chest radiograph of the same patient. Return one radiograph with the same size, projection, positioning and anatomy as the input, without any added text, labels, captions, panels or borders. Change only what this clinical information implies: {input}"
+  t3: "{input}\nUsing the clinical information above, edit the input chest radiograph into the follow-up chest radiograph of the same patient. Output a single radiograph only, with no text."
+flux2_klein_4b:
+  t1: "Edit this chest radiograph into the follow-up chest radiograph of the same patient, taken after the interval below. Keep the projection, positioning and anatomy; change only what the interval and the treatments imply. {input}"
+  t2: "Edit this chest radiograph into the follow-up chest radiograph of the same patient. Return one radiograph with the same size, projection, positioning and anatomy as the input, without any added text, labels, captions, panels or borders. Change only what this clinical information implies: {input}"
+  t3: "{input}\nUsing the clinical information above, edit the input chest radiograph into the follow-up chest radiograph of the same patient. Output a single radiograph only, with no text."
+medgemma_1_5_4b:
+  t1: "The image is the prior chest radiograph of a patient. {input}\nPredict the follow-up chest radiograph. {answer_format}"
+lingshu_32b:
+  t1: "The image is the prior chest radiograph of a patient. {input}\nPredict the follow-up chest radiograph. {answer_format}"
+
+# The answer format of the state predictors (greedy decoding, one response per query). Grades: 0 absent,
+# 1 questionable, 2 mild, 3 moderate, 4 severe. Device sides: "left", "right" or "none".
+answer_format: >-
+  Answer with one JSON object only, no other text, with these keys:
+  "edema" (0-4), "effusion_left" (0-4), "effusion_right" (0-4),
+  "endotracheal_tube" (true/false), "central_venous_catheter" (true/false),
+  "central_venous_catheter_side" ("left"/"right"/"none"), "picc" (true/false),
+  "enteric_tube" (true/false), "chest_tube" (true/false).

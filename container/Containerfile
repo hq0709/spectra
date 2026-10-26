@@ -1,0 +1,84 @@
+# syntax=docker/dockerfile:1
+#
+# SpecTra runtime image for Docker and Podman (Apptainer equivalent:
+# spectra.def). The build context is the spectra/ package root, i.e. the
+# parent of this directory:
+#
+#   podman build -f container/Containerfile -t spectra-core:0 .
+#   podman build -f container/Containerfile --build-arg FLAVOR=gpu -t spectra-gpu:0 .
+#
+# The env is installed from the lock files in this directory and is never
+# re-solved, so the image holds the same packages as the the development cluster dev env and the
+# conda-pack tarball. Only explicit paths are copied in (no `COPY .`), so data
+# that ends up under spectra/ never lands in an image layer.
+
+# mambaorg/micromamba:2.9.0, pinned by its multi-arch index digest (2026-09-03).
+ARG BASE_IMAGE=docker.io/mambaorg/micromamba:2.9.0@sha256:e0a99b0f17a759e14c2f967dc0ca2d3a3c1ca3c62955f4d20bba770eaaf0184d
+FROM ${BASE_IMAGE}
+
+# core = Gate-0 CPU env; gpu = core + CUDA 12.9 torch/vLLM stack.
+ARG FLAVOR=core
+
+# Build and run as root. Rootless podman on a host with no /etc/subuid range
+# maps a single UID, so the base image's mambauser (uid 57439) cannot be
+# entered there; container root is the invoking user on the host anyway. On a
+# rootful Docker host pass `--user "$(id -u):$(id -g)"` at run time instead.
+USER root
+
+ENV MAMBA_ROOT_PREFIX=/opt/conda \
+    PATH=/opt/conda/bin:${PATH} \
+    PYTHONNOUSERSITE=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_ROOT_USER_ACTION=ignore
+
+COPY container/conda-linux-64.lock \
+     container/conda-gpu-linux-64.lock \
+     container/requirements-gpu.lock.txt \
+     container/spectra-libstdcxx.pth \
+     /opt/spectra-lock/
+
+# gpu: the .pth preloads the env's libstdc++ so pip wheels (torch) cannot pull
+# in an older system copy first; see README "libstdc++ on EL8".
+RUN set -eux; \
+    case "${FLAVOR}" in \
+      core) micromamba install -y -n base --file /opt/spectra-lock/conda-linux-64.lock ;; \
+      gpu)  micromamba install -y -n base --file /opt/spectra-lock/conda-gpu-linux-64.lock; \
+            python -m pip install --no-deps --require-hashes \
+                -r /opt/spectra-lock/requirements-gpu.lock.txt; \
+            python -c 'import shutil, sysconfig; shutil.copy("/opt/spectra-lock/spectra-libstdcxx.pth", sysconfig.get_paths()["purelib"])' ;; \
+      *)    echo "FLAVOR must be core or gpu, got '${FLAVOR}'" >&2; exit 2 ;; \
+    esac; \
+    micromamba clean --all --yes; \
+    python -m pip check; \
+    python -c "import numpy, pandas, pyarrow, duckdb, scipy, yaml"; \
+    if [ "${FLAVOR}" = gpu ]; then \
+      python -c "import torch, torchvision; print('torch', torch.__version__, 'cuda', torch.version.cuda)"; \
+    fi
+
+# The package itself. README.m[d] is a glob so the build also works before the
+# package has a README (setuptools builds without it).
+COPY pyproject.toml README.m[d] /opt/spectra/
+COPY src/ /opt/spectra/src/
+COPY config/ /opt/spectra/config/
+COPY tests/ /opt/spectra/tests/
+
+# Editable install: bind-mounting a newer checkout over /opt/spectra at run
+# time (-v "$PWD":/opt/spectra) then runs that code with the locked env.
+# --no-build-isolation uses the env's own setuptools/wheel, so no network.
+RUN set -eux; \
+    python -m pip install --no-deps --no-build-isolation -e /opt/spectra; \
+    python -c "import spectra"; \
+    if command -v spectra >/dev/null; then echo "spectra CLI installed"; fi
+
+LABEL org.opencontainers.image.title="spectra" \
+      org.opencontainers.image.description="SpecTra benchmark constructor runtime (locked conda-forge env)"
+
+WORKDIR /opt/spectra
+# Same contract as the Apptainer %runscript: arguments go to the spectra CLI.
+#   docker run --rm spectra-core:0 selftest
+# Anything else needs --entrypoint, e.g. the test suite:
+#   docker run --rm --entrypoint python spectra-core:0 -m pytest -q /opt/spectra/tests
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "spectra"]
+CMD ["--help"]
