@@ -21,7 +21,7 @@ curl -sI https://huggingface.co | head -1    # outbound internet?
 ## 1. Code
 
 ```bash
-git clone https://github.com/<owner>/spectra.git && cd spectra
+git clone https://github.com/hq0709/spectra.git && cd spectra
 mkdir -p ../third_party && cd ../third_party           # official code of three evaluated systems (R004 only)
 git clone https://github.com/Masaaki-75/progemu   progemu  && git -C progemu  checkout 28cc43a885fe7a4d835bf735d5ea85f29ad3d9b2
 git clone https://github.com/uni-medical/UniMedVL unimedvl && git -C unimedvl checkout f51aa0accbd02e846e5ea20b595fb39b516dbe1f
